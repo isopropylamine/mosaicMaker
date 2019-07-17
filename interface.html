@@ -1,0 +1,452 @@
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css?family=Rubik" rel="stylesheet">
+
+<style type="text/css">
+	
+table{
+        display: inline-block;
+        min-height: 200px;
+        min-width: 200px;
+}
+
+td{
+        display: inline-block;
+        border-width: 5px;
+        border-style: solid;
+        border-color: black;
+        border-radius: 15px;
+        min-width: 70px;
+        min-height: 70px;
+        margin: 3px;
+
+
+}
+
+
+.bigButton{
+        font-size: 20px;
+        font-family: 'Rubik', sans-serif;
+}
+
+#cubeContainer{
+        min-width: 50%;
+        min-height: 50%;
+        display: inline-block;
+        margin-left: 10%;
+        text-align: center;
+        align-items: center;        
+}
+
+#container{
+        text-align: center;
+        margin-top: 15px;
+        display:flex;
+        overflow: none;
+}
+
+
+
+#dataContainer{
+        display: inline-block;
+        width: 30%;
+        -webkit-transform:scale(0.7);
+        -moz-transform:scale(0.7);
+        -ms-transform:scale(0.7);
+        transform:scale(0.7);
+
+}
+
+h1{
+        font-family: 'Rubik', sans-serif;
+        font-size: 25px;
+}
+
+h2{
+        font-family: 'Rubik', sans-serif;
+        font-size: 35px;
+}
+
+
+
+
+
+</style>
+<title>Angstrom Mosaic</title>
+
+</head>
+
+<body>
+
+<div style="text-align: center; margin-top: 35px;">
+<input class="bigButton" type='file' id='fileinput'>
+<input class="bigButton" type='button' id='btnLoad' value='Load' onclick='loadFile();'>
+<br><br>
+<input style="width:450px" class="bigButton" type="number" id="seekNumber" placeholder="Enter number of the cube you want to skip to">
+<input class="bigButton" type='button' id='btnSeek' value='Skip' onclick='seek();'>
+</div>
+
+
+
+
+
+<div id="container">
+
+
+
+    <div id="cubeContainer">
+
+    <h1 id="cubeTitle">Current Cube</h1>
+    <br>
+
+    <table>
+    <tr>
+    <td id='c1'></td>
+    <td id='c2'></td>
+    <td id='c3'></td>
+    </tr>
+    <tr>
+    <td id='c4'></td>
+    <td id='c5'></td>
+    <td id='c6'></td>
+    </tr>
+    <tr>
+    <td id='c7'></td>
+    <td id='c8'></td>
+    <td id='c9'></td>
+    </tr>
+
+    <tr></tr>
+
+    <tr>
+    <td id='c10' colspan="3" style="width:250px; margin-top: 20px;"></td>
+    </tr>
+
+    </table>
+
+
+    <br>
+
+    <h2 id='command'>&nbsp;</h2>
+
+    <br>
+    <br>
+
+
+    <input class="bigButton" type='button' value='Next Cube' onclick='next();'>
+    <input class="bigButton" type='button' value='Previous Cube' onclick='previous();'>
+
+
+    </div>
+
+
+
+
+
+<div id="dataContainer">
+
+<h1>Next Cube</h1>
+<br>
+
+<table>
+    <tr>
+    <td id='c11'></td>
+    <td id='c12'></td>
+    <td id='c13'></td>
+    </tr>
+    <tr>
+    <td id='c14'></td>
+    <td id='c15'></td>
+    <td id='c16'></td>
+    </tr>
+    <tr>
+    <td id='c17'></td>
+    <td id='c18'></td>
+    <td id='c19'></td>
+    </tr>
+
+    <tr></tr>
+
+    <tr>
+    <td id='c20' colspan="3" style="width:250px; margin-top: 20px;" ></td>
+    </tr>
+
+    </table>
+
+    <h1 id='nextCommand'>&nbsp;</h1>
+
+
+</div>
+
+
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+<script>
+if (annyang) {
+  // Let's define our first command. First the text we expect, and then the function it should call
+  var commands = {
+    'next': function(){ next() } 
+  };
+
+  // Add our commands to annyang
+  annyang.addCommands(commands);
+
+  // Start listening. You can call this here, or attach this call to an event, button, etc.
+  annyang.start();
+}
+</script>
+
+
+<script>
+
+
+
+
+var mosaicData;
+var cubeCounter = 0;
+
+function loadFile() {
+    var input, file, fr;
+
+    if (typeof window.FileReader !== 'function') {
+      alert("The file API isn't supported on this browser yet.");
+      return;
+    }
+
+    input = document.getElementById('fileinput');
+    if (!input) {
+      alert("Couldn't find the fileinput element.");
+    }
+    else if (!input.files) {
+      alert("This browser doesn't seem to support the `files` property of file inputs.");
+    }
+    else if (!input.files[0]) {
+      alert("Please select a file before clicking 'Load'");
+    }
+    else {
+      file = input.files[0];
+      fr = new FileReader();
+      fr.onload = receivedText;
+      fr.readAsText(file);
+
+
+      document.getElementById("fileinput").style.display = "none";
+      document.getElementById("btnLoad").style.display = "none";
+    }
+    
+    }
+
+    function cubeLabeller(){
+        console.log(cubeCounter);
+        currentCube = mosaicData[cubeCounter];
+
+        currentTitle = "Cube: " + String(cubeCounter) + "<br>    Row: " + String(currentCube[0]) + "&nbsp; &nbsp; Column: " + String(currentCube[1]);
+
+        document.getElementById("cubeTitle").innerHTML = currentTitle;
+
+    }
+
+
+    function receivedText(e) {
+      let lines = e.target.result;
+      mosaicData = JSON.parse(lines);
+      next();
+
+    }
+
+    function seek(){
+        jumpNumber = document.getElementById('seekNumber').value;
+        cubeCounter = jumpNumber - 1;
+
+        next();
+    }
+
+    function next(){
+        cubeCounter++;
+
+        currentCube = mosaicData[cubeCounter];
+
+        colourList = currentCube[2];
+
+
+        document.getElementById("c1").style.backgroundColor = colourReturn(colourList[0]);
+        document.getElementById("c2").style.backgroundColor = colourReturn(colourList[1]);
+        document.getElementById("c3").style.backgroundColor = colourReturn(colourList[2]);
+        document.getElementById("c4").style.backgroundColor = colourReturn(colourList[3]);
+        document.getElementById("c5").style.backgroundColor = colourReturn(colourList[4]);
+        document.getElementById("c6").style.backgroundColor = colourReturn(colourList[5]);
+        document.getElementById("c7").style.backgroundColor = colourReturn(colourList[6]);
+        document.getElementById("c8").style.backgroundColor = colourReturn(colourList[7]);
+        document.getElementById("c9").style.backgroundColor = colourReturn(colourList[8]);
+
+        cubeLabeller();
+
+        scrambleData = currentCube[3].split(":");
+        frontColour = scrambleData[0];
+        
+        document.getElementById("c10").style.backgroundColor = frontColour;
+        document.getElementById("command").innerHTML = scrambleData[1];
+
+        populateNext();
+
+                
+    }
+
+
+
+    function populateNext(){
+
+        nextCube = cubeCounter + 1;
+
+        currentCube = mosaicData[nextCube];
+
+        colourList = currentCube[2];
+
+
+        document.getElementById("c11").style.backgroundColor = colourReturn(colourList[0]);
+        document.getElementById("c12").style.backgroundColor = colourReturn(colourList[1]);
+        document.getElementById("c13").style.backgroundColor = colourReturn(colourList[2]);
+        document.getElementById("c14").style.backgroundColor = colourReturn(colourList[3]);
+        document.getElementById("c15").style.backgroundColor = colourReturn(colourList[4]);
+        document.getElementById("c16").style.backgroundColor = colourReturn(colourList[5]);
+        document.getElementById("c17").style.backgroundColor = colourReturn(colourList[6]);
+        document.getElementById("c18").style.backgroundColor = colourReturn(colourList[7]);
+        document.getElementById("c19").style.backgroundColor = colourReturn(colourList[8]);
+
+
+        scrambleData = currentCube[3].split(":");
+        frontColour = scrambleData[0];
+        
+        document.getElementById("c20").style.backgroundColor = frontColour;
+
+
+        streakDetection();
+
+    }
+
+
+    function previous(){
+        cubeCounter--;
+
+        currentCube = mosaicData[cubeCounter];
+
+        document.getElementById("command").innerHTML = currentCube[3];
+
+        colourList = currentCube[2];
+
+
+        document.getElementById("c1").style.backgroundColor = colourReturn(colourList[0]);
+        document.getElementById("c2").style.backgroundColor = colourReturn(colourList[1]);
+        document.getElementById("c3").style.backgroundColor = colourReturn(colourList[2]);
+        document.getElementById("c4").style.backgroundColor = colourReturn(colourList[3]);
+        document.getElementById("c5").style.backgroundColor = colourReturn(colourList[4]);
+        document.getElementById("c6").style.backgroundColor = colourReturn(colourList[5]);
+        document.getElementById("c7").style.backgroundColor = colourReturn(colourList[6]);
+        document.getElementById("c8").style.backgroundColor = colourReturn(colourList[7]);
+        document.getElementById("c9").style.backgroundColor = colourReturn(colourList[8]);
+
+        cubeLabeller();
+
+        scrambleData = currentCube[3].split(":");
+        frontColour = scrambleData[0];
+        
+        document.getElementById("c10").style.backgroundColor = frontColour;
+        document.getElementById("command").innerHTML = scrambleData[1];
+
+        populateNext();
+
+    }
+
+
+        function streakDetection(){
+
+            currentCube = mosaicData[cubeCounter];
+            scrambleData = currentCube[3].split(":");
+            currentMoves = scrambleData[1];
+
+            streakCount = 0
+
+            nextCube = mosaicData[cubeCounter + 1];
+            nextScrambleData = nextCube[3].split(":");
+            nextMoves = nextScrambleData[1];
+
+            if( currentMoves == nextMoves){
+
+                streakCounter = 1
+                streakStillExists = 0
+
+
+                while(streakStillExists == 0){
+                    iteratingCube = mosaicData[cubeCounter + streakCounter];
+                    iteratingScrambleData = iteratingCube[3].split(":");
+                    iteratingMoves = iteratingScrambleData[1];
+
+                    if( iteratingMoves == currentMoves){
+                        streakCounter++;
+                    }
+                    else{
+                        streakStillExists = 1;
+                    }
+
+                }
+
+                cubeCounter = cubeCounter + streakCounter - 1;
+
+                outgoingText = currentMoves + " for " + streakCounter + " cubes";
+
+                document.getElementById("command").innerHTML = outgoingText;
+                populateNext();
+
+
+
+
+
+            }
+
+
+    }
+
+
+    function colourReturn( abbreviatedColour ){
+        if(abbreviatedColour == "w"){
+                return "white";
+        }
+        if(abbreviatedColour == "y"){
+                return "yellow";
+        }
+        if(abbreviatedColour == "g"){
+                return "green";
+        }
+        if(abbreviatedColour == "b"){
+                return "blue";
+        }
+        if(abbreviatedColour == "o"){
+                return "orange";
+        }
+        if(abbreviatedColour == "r"){
+                return "red";
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+ 
+ 
+
+</body>
+</html>
