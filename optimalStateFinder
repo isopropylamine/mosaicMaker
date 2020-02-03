@@ -1,0 +1,829 @@
+import os
+import json
+import time
+from displayer import display
+
+
+
+solvedState = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+# 0-11 is EP
+# 12-19 is CP
+# 20-31 is EO
+# 32-39 is CO
+
+pruningTable ={}
+optimalFaceStates = {}
+
+
+def prune():
+    global optimalFaceStates
+    
+    start = time.time()
+    turns = ["R", "R2", "Ri", "L", "L2", "Li", "U", "U2", "Ui", "F", "F2", "Fi", "B", "B2", "Bi"]
+    totalDepth = 0
+    phase1Pruning = {}
+    
+    lastDepth = []
+
+
+    while totalDepth < 6:
+        thisDepth = []
+
+        if len(lastDepth) == 0:
+            for j in turns:
+                turn = [j]
+
+                #getKey returns a Key based on the moves applied
+                tempKey = getKey(turn)
+                keyPair = { tempKey : turn }
+                thisDepth.append(turn)
+                phase1Pruning.update(keyPair)
+                refresh()
+
+
+            lastDepth = thisDepth
+            totalDepth = totalDepth + 1
+            print(totalDepth)   
+            print(len(thisDepth))
+            continue
+
+        newSequences = 0
+        
+        for previousSequence in lastDepth:
+                        
+            lastTurn = previousSequence[-1]
+            lastTurnClass = lastTurn[0]
+            
+            for turn in turns:                        
+                tempSequence = previousSequence.copy()
+                thisTurnClass = turn[0]
+
+                #Checks if they are the same move, so R is not applied to Ri, reduces redundancy
+                if lastTurnClass != thisTurnClass:
+                    
+                    #Applies it to the current iteration.
+                    
+                    tempSequence.append(turn)                     
+                    
+                    
+                    #Checks if it's already a known state, if not, then adds to the table
+                    tempKey = getKey(tempSequence)
+                    refresh()
+                    
+                    if tempKey not in phase1Pruning:
+                        keyPair = { tempKey : tempSequence }
+                        phase1Pruning.update(keyPair)
+                        newSequences += 1
+                        thisDepth.append(tempSequence)
+
+                        
+                    
+        lastDepth = thisDepth
+        totalDepth = totalDepth + 1
+        
+        
+        print(totalDepth)
+        print(len(thisDepth))
+
+        if newSequences == 0:
+            break
+    
+        newSequences = 0
+
+
+
+    #At this phase, iterate through the dictionary(phase1Pruning).
+    #If the U-Face state doesn't exist, append it to the new dictionary, things are already sorted because it is in the order of creation of the dictionary, which is from lowest to highest
+
+
+    for key,value in phase1Pruning.items():
+        splitKey = key.split("#")
+        uFace = splitKey[0]
+        
+        if uFace not in optimalFaceStates:
+            optimalFaceStates.update( {uFace : value} )
+
+
+    print( time.time() - start)
+
+
+
+def prune2():
+    global optimalFaceStates
+    
+    start = time.time()
+    turns = ["R", "R2", "Ri", "L", "L2", "Li", "U", "U2", "Ui", "F", "F2", "Fi", "B", "B2", "Bi"]
+    totalDepth = 0
+    phase1Pruning = {}
+    
+    lastDepth = []
+
+
+    #total states should be 1679529
+
+
+    while totalDepth < 13:
+        thisDepth = []
+
+        if len(lastDepth) == 0:
+            for j in turns:
+                turn = [j]
+
+                #getKey returns a Key based on the moves applied
+                tempKey = getKey2(turn)
+                keyPair = { tempKey : turn }
+                thisDepth.append(turn)
+                phase1Pruning.update(keyPair)
+                refresh()
+
+
+            lastDepth = thisDepth
+            totalDepth = totalDepth + 1
+            print(totalDepth)   
+            print(len(thisDepth))
+            continue
+
+        newSequences = 0
+        
+        for previousSequence in lastDepth:
+                        
+            lastTurn = previousSequence[-1]
+            lastTurnClass = lastTurn[0]
+            
+            for turn in turns:                        
+                tempSequence = previousSequence.copy()
+                thisTurnClass = turn[0]
+
+                #Checks if they are the same move, so R is not applied to Ri, reduces redundancy
+                if lastTurnClass != thisTurnClass:
+                    
+                    #Applies it to the current iteration.
+                    
+                    tempSequence.append(turn)                     
+                    
+                    
+                    #Checks if it's already a known state, if not, then adds to the table
+                    tempKey = getKey2(tempSequence)
+                    refresh()
+                    
+                    if tempKey not in phase1Pruning:
+                        keyPair = { tempKey : tempSequence }
+                        phase1Pruning.update(keyPair)
+                        newSequences += 1
+                        thisDepth.append(tempSequence)
+
+                        
+                    
+        lastDepth = thisDepth
+        totalDepth = totalDepth + 1
+        
+        
+        print(totalDepth)
+        print(len(thisDepth))
+
+        if newSequences == 0:
+            break
+    
+        newSequences = 0
+
+
+    #At this point, we check all sequences in the sub-optimal range.
+    #If the key isn't in the optimal, we add it to it
+
+    for key,value in phase1Pruning.items():
+        
+        if key not in optimalFaceStates:
+            optimalFaceStates.update( {key : value} )
+
+
+    print(len(optimalFaceStates))
+    
+    with open('pruningTable.txt', 'w') as p1Table:
+        p1Table.write(json.dumps(optimalFaceStates)) 
+
+    p1Table.close()
+    print( time.time() - start)
+
+
+def pruneRotations():
+    start = time.time()
+    turns = ["Y", "Y2", "Yi", "X", "X2", "Xi", "Z", "Z2", "Zi"]
+    totalDepth = 0
+    phase1Pruning = {}
+    
+    lastDepth = []
+
+
+    #total states should be 1679529
+
+
+    while totalDepth < 4:
+        thisDepth = []
+
+        if len(lastDepth) == 0:
+            for j in turns:
+                turn = [j]
+
+                #getKey returns a Key based on the moves applied
+                tempKey = getRotationKey(turn)
+                keyPair = { tempKey : turn }
+                thisDepth.append(turn)
+                phase1Pruning.update(keyPair)
+                refresh()
+
+
+            lastDepth = thisDepth
+            totalDepth = totalDepth + 1
+            print(totalDepth)   
+            print(len(thisDepth))
+            continue
+
+        newSequences = 0
+        
+        for previousSequence in lastDepth:
+                        
+            lastTurn = previousSequence[-1]
+            lastTurnClass = lastTurn[0]
+            
+            for turn in turns:                        
+                tempSequence = previousSequence.copy()
+                thisTurnClass = turn[0]
+
+                #Checks if they are the same move, so R is not applied to Ri, reduces redundancy
+                if lastTurnClass != thisTurnClass:
+                    
+                    #Applies it to the current iteration.
+                    
+                    tempSequence.append(turn)                     
+                    
+                    
+                    #Checks if it's already a known state, if not, then adds to the table
+                    tempKey = getRotationKey(tempSequence)
+                    refresh()
+                    
+                    if tempKey not in phase1Pruning:
+                        keyPair = { tempKey : tempSequence }
+                        phase1Pruning.update(keyPair)
+                        newSequences += 1
+                        thisDepth.append(tempSequence)
+
+                        
+                    
+        lastDepth = thisDepth
+        totalDepth = totalDepth + 1
+        
+        
+        print(totalDepth)
+        print(len(thisDepth))
+
+        if newSequences == 0:
+            break
+    
+
+
+    
+    with open('pruningRotations.txt', 'w') as p1Table:
+        p1Table.write(json.dumps(phase1Pruning)) 
+
+    p1Table.close()
+    print( time.time() - start)
+    
+
+
+
+def getRotationKey( turns ):
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    global mainState
+
+    for x in turns:
+        function = globals()[x]
+        function()
+
+    topColour = Uf[4]
+    frontColour = Ff[4]
+
+    output = str(topColour) + str(frontColour)
+
+    return( output )
+
+
+    
+def getKey( turns ):
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    global mainState
+    
+    for x in turns:
+        function = globals()[x]
+        function()
+
+    uFace = [Uf[0], Uf[1], Uf[2], Uf[3], Uf[5], Uf[6], Uf[7], Uf[8]]
+    cubeState = Uf + Df + Ff + Bf + Lf + Rf
+
+    uFace = ''.join(uFace)
+    cubeState = ''.join(cubeState)
+    
+
+    outputTuple = ( uFace, "#", cubeState )
+
+    return (''.join(outputTuple))
+
+def getKey2( turns ):
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    global mainState
+    
+    for x in turns:
+        function = globals()[x]
+        function()
+
+    uFace = [Uf[0], Uf[1], Uf[2], Uf[3], Uf[5], Uf[6], Uf[7], Uf[8]]
+
+    return (''.join(uFace))
+
+
+def loadFiles():
+    global pruningTable
+
+    with open("C:/Users/isopr/Desktop/Project Mosaic/pruningTable.txt") as file:
+        pruningTable = json.load(file)
+
+
+
+Uf = ["U","U","U","U","W","U","U","U","U"]
+Df = ["D","D","D","D","Y","D","D","D","D"]
+Ff = ["F","F","F","F","G","F","F","F","F"]
+Bf = ["B","B","B","B","B","B","B","B","B"]
+Lf = ["L","L","L","L","O","L","L","L","L"]
+Rf = ["R","R","R","R","R","R","R","R","R"]
+
+
+mainState = [Uf, Df, Ff, Bf, Lf, Rf]
+
+def update():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+
+    global mainState
+
+    mainState = [Uf, Df, Ff, Bf, Lf, Rf]
+    
+def clockwise( face ):
+    b = face
+    return ( [b[6], b[3], b[0], b[7], b[4], b[1], b[8], b[5], b[2] ])
+
+def Aclockwise( face ):
+    b = face
+    return ( [b[2], b[5], b[8], b[1], b[4], b[7], b[0], b[3], b[6] ])
+
+def doublemove( face ):
+    b = face
+    return ( [b[8], b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0] ])
+
+def refresh():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+
+    Uf = ["U","U","U","U","W","U","U","U","U"]
+    Df = ["D","D","D","D","Y","D","D","D","D"]
+    Ff = ["F","F","F","F","G","F","F","F","F"]
+    Bf = ["B","B","B","B","B","B","B","B","B"]
+    Lf = ["L","L","L","L","O","L","L","L","L"]
+    Rf = ["R","R","R","R","R","R","R","R","R"]
+
+    #MOVES===========================================================================================================
+
+def R():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf = [ cU[0], cU[1], cF[2], cU[3], cU[4], cF[5], cU[6], cU[7], cF[8]]
+    Bf = [ cB[0], cB[1], cU[2], cB[3], cB[4], cU[5], cB[6], cB[7], cU[8]]
+    Df = [ cB[8], cD[1], cD[2], cB[5], cD[4], cD[5], cB[2], cD[7], cD[8]]
+    Ff = [ cF[0], cF[1], cD[6], cF[3], cF[4], cD[3], cF[6], cF[7], cD[0]]
+    Rf = clockwise(Rf)
+def Ri():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Rf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf = [cU[0], cU[1], cB[2], cU[3], cU[4], cB[5], cU[6], cU[7], cB[8]]
+    Bf = [cB[0], cB[1], cD[6], cB[3], cB[4], cD[3], cB[6], cB[7], cD[0]]
+    Df = [cF[8], cD[1], cD[2], cF[5], cD[4], cD[5], cF[2], cD[7], cD[8]]
+    Ff = [cF[0], cF[1], cU[2], cF[3], cF[4], cU[5], cF[6], cF[7], cU[8]]
+    Rf = Aclockwise(Rf) 
+def R2():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Rf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf= [cU[0], cU[1], cD[6], cU[3], cU[4], cD[3], cU[6], cU[7], cD[0]]
+    Bf= [cB[0], cB[1], cF[2], cB[3], cB[4], cF[5], cB[6], cB[7], cF[8]]
+    Df= [cU[8], cD[1], cD[2], cU[5], cD[4], cD[5], cU[2], cD[7], cD[8]]
+    Ff= [cF[0], cF[1], cB[2], cF[3], cF[4], cB[5], cF[6], cF[7], cB[8]]
+    Rf = doublemove(Rf) 
+def L():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf = [cB[0], cU[1], cU[2], cB[3], cU[4], cU[5], cB[6], cU[7], cU[8]]
+    Bf = [cD[8], cB[1], cB[2], cD[5], cB[4], cB[5], cD[2], cB[7], cB[8]]
+    Df = [cD[0], cD[1], cF[6], cD[3], cD[4], cF[3], cD[6], cD[7], cF[0]]
+    Ff = [cU[0], cF[1], cF[2], cU[3], cF[4], cF[5], cU[6], cF[7], cF[8]]
+    Lf = clockwise(Lf)
+def Li():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf = [cF[0], cU[1], cU[2], cF[3], cU[4], cU[5], cF[6], cU[7], cU[8]]
+    Bf = [cU[0], cB[1], cB[2], cU[3], cB[4], cB[5], cU[6], cB[7], cB[8]]
+    Df = [cD[0], cD[1], cB[6], cD[3], cD[4], cB[3], cD[6], cD[7], cB[0]]
+    Ff = [cD[8], cF[1], cF[2], cD[5], cF[4], cF[5], cD[2], cF[7], cF[8]]
+    Lf = Aclockwise(Lf)
+def L2():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    cU = Uf
+    cD = Df
+    cF = Ff
+    cB = Bf
+    Uf = [cD[8], cU[1], cU[2], cD[5], cU[4], cU[5], cD[2], cU[7], cU[8]]
+    Bf = [cF[0], cB[1], cB[2], cF[3], cB[4], cB[5], cF[6], cB[7], cB[8]]
+    Df = [cD[0], cD[1], cU[6], cD[3], cD[4], cU[3], cD[6], cD[7], cU[0]]
+    Ff = [cB[0], cF[1], cF[2], cB[3], cF[4], cF[5], cB[6], cF[7], cF[8]]
+    Lf = doublemove(Lf)
+def U():
+    global Uf
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cL[0], cL[1], cF[0], cL[3], cL[4], cF[1], cL[6], cL[7], cF[2]]
+    Bf = [cB[0], cB[1], cB[2], cB[3], cB[4], cB[5], cL[8], cL[5], cL[2]]
+    Rf = [cB[6], cR[1], cR[2], cB[7], cR[4], cR[5], cB[8], cR[7], cR[8]]
+    Ff = [cR[6], cR[3], cR[0], cF[3], cF[4], cF[5], cF[6], cF[7], cF[8]]
+    Uf = clockwise(Uf)
+def Ui():
+    global Uf
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cL[0], cL[1], cB[8], cL[3], cL[4], cB[7], cL[6], cL[7], cB[6]]
+    Bf = [cB[0], cB[1], cB[2], cB[3], cB[4], cB[5], cR[0], cR[3], cR[6]]
+    Rf = [cF[2], cR[1], cR[2], cF[1], cR[4], cR[5], cF[0], cR[7], cR[8]]
+    Ff = [cL[2], cL[5], cL[8], cF[3], cF[4], cF[5], cF[6], cF[7], cF[8]]
+    Uf = Aclockwise(Uf)
+def U2():
+    global Uf
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cL[0], cL[1], cR[6], cL[3], cL[4], cR[3], cL[6], cL[7], cR[0]]
+    Bf = [cB[0], cB[1], cB[2], cB[3], cB[4], cB[5], cF[2], cF[1], cF[0]]
+    Rf = [cL[8], cR[1], cR[2], cL[5], cR[4], cR[5], cL[2], cR[7], cR[8]]
+    Ff = [cB[8], cB[7], cB[6], cF[3], cF[4], cF[5], cF[6], cF[7], cF[8]]
+    Uf = doublemove(Uf)
+def D():
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cB[2], cL[1], cL[2], cB[1], cL[4], cL[5], cB[0], cL[7], cL[8]]
+    Bf = [cR[2], cR[5], cR[8], cB[3], cB[4], cB[5], cB[6], cB[7], cB[8]]
+    Rf = [cR[0], cR[1], cF[8], cR[3], cR[4], cF[7], cR[6], cR[7], cF[6]]
+    Ff = [cF[0], cF[1], cF[2], cF[3], cF[4], cF[5], cL[0], cL[3], cL[6]]
+    Df = clockwise(Df)
+def Di():
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cF[6], cL[1], cL[2], cF[7], cL[4], cL[5], cF[8], cL[7], cL[8]]
+    Bf = [cL[6], cL[3], cL[0], cB[3], cB[4], cB[5], cB[6], cB[7], cB[8]]
+    Rf = [cR[0], cR[1], cB[0], cR[3], cR[4], cB[1], cR[6], cR[7], cB[2]]
+    Ff = [cF[0], cF[1], cF[2], cF[3], cF[4], cF[5], cR[8], cR[5], cR[2]]
+    Df = Aclockwise(Df)
+def D2():
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Lf = [cR[8], cL[1], cL[2], cR[5], cL[4], cL[5], cR[2], cL[7], cL[8]]
+    Bf = [cF[8], cF[7], cF[6], cB[3], cB[4], cB[5], cB[6], cB[7], cB[8]]
+    Rf = [cR[0], cR[1], cL[6], cR[3], cR[4], cL[3], cR[6], cR[7], cL[0]]
+    Ff = [cF[0], cF[1], cF[2], cF[3], cF[4], cF[5], cB[2], cB[1], cB[0]]
+    Df = doublemove(Df)
+def F():
+    global Uf
+    global Df
+    global Ff
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cU[0], cU[1], cU[2], cU[3], cU[4], cU[5], cL[6], cL[7], cL[8]]
+    Df = [cD[0], cD[1], cD[2], cD[3], cD[4], cD[5], cR[6], cR[7], cR[8]]
+    Rf = [cR[0], cR[1], cR[2], cR[3], cR[4], cR[5], cU[6], cU[7], cU[8]]
+    Lf = [cL[0], cL[1], cL[2], cL[3], cL[4], cL[5], cD[6], cD[7], cD[8]]
+    Ff = clockwise(Ff)
+def Fi():
+    global Uf
+    global Df
+    global Ff
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cU[0], cU[1], cU[2], cU[3], cU[4], cU[5], cR[6], cR[7], cR[8]]
+    Df = [cD[0], cD[1], cD[2], cD[3], cD[4], cD[5], cL[6], cL[7], cL[8]]
+    Rf = [cR[0], cR[1], cR[2], cR[3], cR[4], cR[5], cD[6], cD[7], cD[8]]
+    Lf = [cL[0], cL[1], cL[2], cL[3], cL[4], cL[5], cU[6], cU[7], cU[8]]
+    Ff = Aclockwise(Ff)
+def F2():
+    global Uf
+    global Df
+    global Ff
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cU[0], cU[1], cU[2], cU[3], cU[4], cU[5], cD[6], cD[7], cD[8]]
+    Df = [cD[0], cD[1], cD[2], cD[3], cD[4], cD[5], cU[6], cU[7], cU[8]]
+    Rf = [cR[0], cR[1], cR[2], cR[3], cR[4], cR[5], cL[6], cL[7], cL[8]]
+    Lf = [cL[0], cL[1], cL[2], cL[3], cL[4], cL[5], cR[6], cR[7], cR[8]]
+    Ff = doublemove(Ff)
+def B():
+    global Uf
+    global Df
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cR[0], cR[1], cR[2], cU[3], cU[4], cU[5], cU[6], cU[7], cU[8]]
+    Df = [cL[0], cL[1], cL[2], cD[3], cD[4], cD[5], cD[6], cD[7], cD[8]]
+    Rf = [cD[0], cD[1], cD[2], cR[3], cR[4], cR[5], cR[6], cR[7], cR[8]]
+    Lf = [cU[0], cU[1], cU[2], cL[3], cL[4], cL[5], cL[6], cL[7], cL[8]]
+    Bf = clockwise(Bf)
+def Bi():
+    global Uf
+    global Df
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cL[0], cL[1], cL[2], cU[3], cU[4], cU[5], cU[6], cU[7], cU[8]]
+    Df = [cR[0], cR[1], cR[2], cD[3], cD[4], cD[5], cD[6], cD[7], cD[8]]
+    Rf = [cU[0], cU[1], cU[2], cR[3], cR[4], cR[5], cR[6], cR[7], cR[8]]
+    Lf = [cD[0], cD[1], cD[2], cL[3], cL[4], cL[5], cL[6], cL[7], cL[8]]
+    Bf = Aclockwise(Bf)
+def B2():
+    global Uf
+    global Df
+    global Bf
+    global Lf
+    global Rf
+    cL = Lf
+    cR = Rf
+    cU = Uf
+    cD = Df
+    Uf = [cD[0], cD[1], cD[2], cU[3], cU[4], cU[5], cU[6], cU[7], cU[8]]
+    Df = [cU[0], cU[1], cU[2], cD[3], cD[4], cD[5], cD[6], cD[7], cD[8]]
+    Rf = [cL[0], cL[1], cL[2], cR[3], cR[4], cR[5], cR[6], cR[7], cR[8]]
+    Lf = [cR[0], cR[1], cR[2], cL[3], cL[4], cL[5], cL[6], cL[7], cL[8]]
+    Bf = doublemove(Bf)
+
+
+
+    #ROTATIONS===========================================================================================================
+
+def Y():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Uf = [cU[6], cU[3], cU[0], cU[7], cU[4], cU[1], cU[8], cU[5], cU[2]]
+    Df = [cD[2], cD[5], cD[8], cD[1], cD[4], cD[7], cD[0], cD[3], cD[6]]
+    Ff = [cR[6], cR[3], cR[0], cR[7], cR[4], cR[1], cR[8], cR[5], cR[2]]
+    Bf = [cL[6], cL[3], cL[0], cL[7], cL[4], cL[1], cL[8], cL[5], cL[2]]
+    Lf = [cF[6], cF[3], cF[0], cF[7], cF[4], cF[1], cF[8], cF[5], cF[2]]
+    Rf = [cB[6], cB[3], cB[0], cB[7], cB[4], cB[1], cB[8], cB[5], cB[2]]
+
+def Y2():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Uf = [cU[8], cU[7], cU[6], cU[5], cU[4], cU[3], cU[2], cU[1], cU[0]]
+    Df = [cD[8], cD[7], cD[6], cD[5], cD[4], cD[3], cD[2], cD[1], cD[0]]
+    Ff = [cB[8], cB[7], cB[6], cB[5], cB[4], cB[3], cB[2], cB[1], cB[0]]
+    Bf = [cF[8], cF[7], cF[6], cF[5], cF[4], cF[3], cF[2], cF[1], cF[0]]
+    Lf = [cR[8], cR[7], cR[6], cR[5], cR[4], cR[3], cR[2], cR[1], cR[0]]
+    Rf = [cL[8], cL[7], cL[6], cL[5], cL[4], cL[3], cL[2], cL[1], cL[0]]
+
+def Yi():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Uf = [cU[2], cU[5], cU[8], cU[1], cU[4], cU[7], cU[0], cU[3], cU[6]]
+    Df = [cD[6], cD[3], cD[0], cD[7], cD[4], cD[1], cD[8], cD[5], cD[2]]
+    Ff = [cL[2], cL[5], cL[8], cL[1], cL[4], cL[7], cL[0], cL[3], cL[6]]
+    Bf = [cR[2], cR[5], cR[8], cR[1], cR[4], cR[7], cR[0], cR[3], cR[6]]
+    Lf = [cB[2], cB[5], cB[8], cB[1], cB[4], cB[7], cB[0], cB[3], cB[6]]
+    Rf = [cF[2], cF[5], cF[8], cF[1], cF[4], cF[7], cF[0], cF[3], cF[6]]
+
+def X():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Uf = [cF[0], cF[1], cF[2], cF[3], cF[4], cF[5], cF[6], cF[7], cF[8]]
+    Df = [cB[8], cB[7], cB[6], cB[5], cB[4], cB[3], cB[2], cB[1], cB[0]]
+    Ff = [cD[8], cD[7], cD[6], cD[5], cD[4], cD[3], cD[2], cD[1], cD[0]]
+    Bf = [cU[0], cU[1], cU[2], cU[3], cU[4], cU[5], cU[6], cU[7], cU[8]]
+    Lf = [cL[2], cL[5], cL[8], cL[1], cL[4], cL[7], cL[0], cL[3], cL[6]]
+    Rf = [cR[6], cR[3], cR[0], cR[7], cR[4], cR[1], cR[8], cR[5], cR[2]]
+
+def Xi():
+    X2()
+    X()
+
+def X2():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+    cU = Uf
+    cD = Df
+    cL = Lf
+    cR = Rf
+    cF = Ff
+    cB = Bf
+    Uf = [cD[8], cD[7], cD[6], cD[5], cD[4], cD[3], cD[2], cD[1], cD[0]]
+    Df = [cU[8], cU[7], cU[6], cU[5], cU[4], cU[3], cU[2], cU[1], cU[0]]
+    Ff = [cB[0], cB[1], cB[2], cB[3], cB[4], cB[5], cB[6], cB[7], cB[8]]
+    Bf = [cF[0], cF[1], cF[2], cF[3], cF[4], cF[5], cF[6], cF[7], cF[8]]
+    Lf = [cL[8], cL[7], cL[6], cL[5], cL[4], cL[3], cL[2], cL[1], cL[0]]
+    Rf = [cR[8], cR[7], cR[6], cR[5], cR[4], cR[3], cR[2], cR[1], cR[0]]
+
+
+def Z():
+    global Uf
+    global Df
+    global Ff
+    global Bf
+    global Lf
+    global Rf
+
+    Ff = clockwise(Ff)
+
+    Bf = Aclockwise(Bf)
+    cU = Uf
+    cL = Lf
+    cR = Rf
+    cD = Df
+
+    Uf = cL
+    Rf = cU
+    Df = cR
+    Lf = cD
+
+
+def Zi():
+    Z2()
+    Z()
+
+def Z2():
+    Z()
+    Z()       
+
+
